@@ -9,6 +9,7 @@ public class PlayerMovement : MonoBehaviour
     public Rigidbody rBody;
     public Animator anim;
     public Image powerIndicator;
+    public KickController kickController;
 
     [Header("Physics")]
     public float gravity;
@@ -33,8 +34,30 @@ public class PlayerMovement : MonoBehaviour
     public float powerupMultiplier = 2;
     float holdMultiplier = 1f;
 
+    bool anyMouseDown = false;
+
+    float init = 0;
+    float additive = 0;
+
+    private void Awake()
+    {
+        init = moveSpeed;
+    }
+
     private void Update()
     {
+        if (h == 0 && v == 0 && !jump)
+        {
+            Vector3 v = rBody.velocity;
+            v.y *= 0;
+            if (v.magnitude > 0)
+            {
+                rBody.isKinematic = true;
+                StartCoroutine(enableRBODY(Time.deltaTime));
+            }
+        }
+
+       
         if (anim.GetBool("kick") == true)
         {
             anim.SetBool("kick", false);
@@ -51,21 +74,29 @@ public class PlayerMovement : MonoBehaviour
         
         if (Input.GetMouseButton(1))
         {
-            powerIndicator.color = Color.Lerp(powerIndicator.color, Color.red, (powerUp / maxHoldPowerup) * powerupMultiplier);
+            powerIndicator.color = Color.Lerp(powerIndicator.color, Color.yellow, (powerUp / maxHoldPowerup) * powerupMultiplier);
             powerUp += Time.deltaTime;
             anim.SetFloat("kickPower", Mathf.Clamp((powerUp / maxHoldPowerup) * powerupMultiplier, 1, Mathf.Infinity));
             v = 0;
             h = 0;
         }
 
+        if (Input.GetMouseButtonDown(0) || Input.GetMouseButton(0) || Input.GetMouseButtonUp(0))
+        {
+            anyMouseDown = true;
+        }
+        else anyMouseDown = false;
+
         if (Input.GetMouseButtonUp(1))
         {
+
+            kickController.InitiateKick(Mathf.Clamp((powerUp / maxHoldPowerup) * powerupMultiplier,1,Mathf.Infinity), jump, true, transform.forward);
             anim.SetBool("superKick", true);
             v = 0;
             h = 0;
             powerUp = 0;
-            
-            StartCoroutine("holdCoroutine");
+
+            StartCoroutine(holdCoroutine(0.4f));
         }
         
      
@@ -73,16 +104,40 @@ public class PlayerMovement : MonoBehaviour
         {
             jump = true;
         }
+
+        if (Input.GetKey(KeyCode.LeftShift))
+        {
+            powerIndicator.color = Color.red;
+            moveSpeed = init + 14;
+        }
+
+        if (Input.GetKeyUp(KeyCode.LeftShift))
+        {
+            if (holdMultiplier != 0)
+            powerIndicator.color = Color.white;
+            moveSpeed = init;
+        }
+
+
         if (Input.GetMouseButtonUp(0))
         {
             powerIndicator.color = Color.green;
             anim.SetBool("kick", true);
-
+            v = 0;
+            h = 0;
+            kickController.InitiateKick(1, jump, false, transform.forward);
             if (!jump)
-                StartCoroutine("holdCoroutine");
+                StartCoroutine(holdCoroutine(0.05f));
         }
+
         MouseLook();
 
+    }
+
+    IEnumerator enableRBODY (float seconds)
+    {
+        yield return new WaitForSeconds(seconds);
+        rBody.isKinematic = false;
     }
 
     Vector3 point;
@@ -101,12 +156,12 @@ public class PlayerMovement : MonoBehaviour
     }
 
 
-    IEnumerator holdCoroutine ()
+    IEnumerator holdCoroutine (float time)
     {
         holdMultiplier = 0f;
-        yield return new WaitForSeconds(0.4f);
+        yield return new WaitForSeconds(time);
         powerIndicator.color = Color.white;
-        yield return new WaitForSeconds(0.4f);
+        yield return new WaitForSeconds(time);
         holdMultiplier = 1f;
         
     }
@@ -121,6 +176,8 @@ public class PlayerMovement : MonoBehaviour
             ApplyMovement(h, v);
         else
             ApplyMovement(h * 0.85f, v * 0.85f);
+
+
 
         if (jump && grounded)
         {
@@ -139,6 +196,9 @@ public class PlayerMovement : MonoBehaviour
         Vector3 movementVector = new Vector3(h, 0,v);
         movementVector = transform.TransformDirection(movementVector);
 
+        if (! anyMouseDown)
+            kickController.Dribble(movementVector);
+
         rBody.MovePosition(transform.position + movementVector * moveSpeed * Time.deltaTime);
 
     }
@@ -153,6 +213,7 @@ public class PlayerMovement : MonoBehaviour
             //if (!jump)
               //  rBody.velocity = new Vector3(rBody.velocity.x, 0, rBody.velocity.y);
             grounded = true;
+            
             anim.SetBool("grounded", true);
             anim.SetLayerWeight(1, 0);
 
