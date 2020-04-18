@@ -9,6 +9,7 @@ public class PlayerMovement : MonoBehaviour
     public Rigidbody rBody;
     public Animator anim;
     public Image powerIndicator;
+    public Image powerIndicato;
     public KickController kickController;
 
     [Header("Physics")]
@@ -35,6 +36,8 @@ public class PlayerMovement : MonoBehaviour
     float holdMultiplier = 1f;
 
     bool anyMouseDown = false;
+
+    int jumpKicks = 0;
 
     float init = 0;
     float additive = 0;
@@ -72,10 +75,11 @@ public class PlayerMovement : MonoBehaviour
         v = Input.GetAxis("Vertical") * holdMultiplier;
         h = Input.GetAxis("Horizontal") * holdMultiplier;
         
-        if (Input.GetMouseButton(1))
+        if (Input.GetMouseButton(1) )
         {
-            powerIndicator.color = Color.Lerp(powerIndicator.color, Color.yellow, (powerUp / maxHoldPowerup) * powerupMultiplier);
-            powerUp += Time.deltaTime;
+            powerIndicator.color = Color.Lerp(powerIndicator.color, Color.yellow, (powerUp / maxHoldPowerup));
+            powerIndicato.color = Color.Lerp(powerIndicator.color, Color.yellow, (powerUp / maxHoldPowerup));
+            powerUp = Mathf.Clamp(powerUp+Time.deltaTime,0,maxHoldPowerup);
             anim.SetFloat("kickPower", Mathf.Clamp((powerUp / maxHoldPowerup) * powerupMultiplier, 1, Mathf.Infinity));
             v = 0;
             h = 0;
@@ -90,13 +94,18 @@ public class PlayerMovement : MonoBehaviour
         if (Input.GetMouseButtonUp(1))
         {
 
-            kickController.InitiateKick(Mathf.Clamp((powerUp / maxHoldPowerup) * powerupMultiplier,1,Mathf.Infinity), jump, true, transform.forward);
-            anim.SetBool("superKick", true);
-            v = 0;
-            h = 0;
-            powerUp = 0;
+            if (!grounded && jumpKicks < 1 || grounded)
+            {
+                kickController.InitiateKick(Mathf.Clamp((powerUp / maxHoldPowerup) * powerupMultiplier, 1, Mathf.Infinity), jump, true, transform.forward);
 
-            StartCoroutine(holdCoroutine(0.4f));
+                anim.SetBool("superKick", true);
+                v = 0;
+                h = 0;
+                powerUp = 0;
+                if (!grounded)
+                jumpKicks += 1;
+                StartCoroutine(holdCoroutine(0.4f));
+            }
         }
         
      
@@ -108,26 +117,38 @@ public class PlayerMovement : MonoBehaviour
         if (Input.GetKey(KeyCode.LeftShift))
         {
             powerIndicator.color = Color.red;
+            powerIndicato.color = Color.red;
             moveSpeed = init + 14;
+            
         }
 
         if (Input.GetKeyUp(KeyCode.LeftShift))
         {
             if (holdMultiplier != 0)
-            powerIndicator.color = Color.white;
+            {
+                powerIndicator.color = Color.white;
+                powerIndicato.color = Color.white;
+            }
             moveSpeed = init;
         }
 
 
         if (Input.GetMouseButtonUp(0))
         {
-            powerIndicator.color = Color.green;
-            anim.SetBool("kick", true);
-            v = 0;
-            h = 0;
-            kickController.InitiateKick(1, jump, false, transform.forward);
-            if (!jump)
-                StartCoroutine(holdCoroutine(0.05f));
+            if (!grounded && jumpKicks < 1 || grounded)
+            {
+                powerIndicator.color = Color.green;
+                powerIndicato.color = Color.green;
+                anim.SetBool("kick", true);
+                v = 0;
+                h = 0;
+                kickController.InitiateKick(1, jump, false, transform.forward);
+                if (!grounded)
+                    jumpKicks += 1;
+
+                if (!jump)
+                    StartCoroutine(holdCoroutine(0.05f));
+            }
         }
 
         MouseLook();
@@ -160,7 +181,7 @@ public class PlayerMovement : MonoBehaviour
     {
         holdMultiplier = 0f;
         yield return new WaitForSeconds(time);
-        powerIndicator.color = Color.white;
+        powerIndicator.color = Color.white;powerIndicato.color = Color.white;
         yield return new WaitForSeconds(time);
         holdMultiplier = 1f;
         
@@ -208,18 +229,20 @@ public class PlayerMovement : MonoBehaviour
         Ray ray = new Ray(transform.position, Vector3.down);
         RaycastHit hit;
         
-        if (Physics.Raycast(ray, out hit, groundedDistance))
+        if (Physics.Raycast(ray, out hit, groundedDistance, groundMask))
         {
             //if (!jump)
               //  rBody.velocity = new Vector3(rBody.velocity.x, 0, rBody.velocity.y);
             grounded = true;
-            
+
+            jumpKicks = 0;
             anim.SetBool("grounded", true);
             anim.SetLayerWeight(1, 0);
 
         }
         else
         {
+            
             anim.SetBool("grounded", false);
             grounded = false;
             anim.SetLayerWeight(1, 0.5f);
