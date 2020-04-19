@@ -99,7 +99,7 @@ public class KickController : MonoBehaviour
 
     public void Dribble (Vector3 direction)
     {
-        if (Input.GetKey(KeyCode.LeftShift) && !kicked)
+        if (!kicked)
         {
             if (ballInRange)
             {
@@ -119,13 +119,15 @@ public class KickController : MonoBehaviour
 
                     if (Input.GetAxis("Vertical") > 0 && controller.grounded && Vector3.Distance(footTransform.position, ballTransform.position) <= minDribbleDistance*2)
                     {
-                      
-                        reLoop = 0f;
-                        runAnim = true;
-                        setPosition = transform.position + (ballTransform.position - footTransform.position) * 0.3f;
-                        setPosition.y = transform.position.y;
-                        initPosition = transform.position;
-                        dribbleLocked = true;
+                        if (Input.GetKey(KeyCode.LeftShift))
+                        {
+                            reLoop = 0f;
+                            runAnim = true;
+                            setPosition = transform.position + (ballTransform.position - footTransform.position) * 0.3f;
+                            setPosition.y = transform.position.y;
+                            initPosition = transform.position;
+                            dribbleLocked = true;
+                        }
                     }
                     else if (controller.rBody.isKinematic)
                     {
