@@ -6,9 +6,9 @@ using UnityEngine.Animations;
 
 public class ScoreManagement : MonoBehaviour
 {
-    public static int goals;
+    public static int score = 0;
     
-    public TMPro.TMP_Text text_goals;
+    public TMPro.TMP_Text text_score;
     public GameObject score_card;
     public Animation animation;
 
@@ -19,15 +19,15 @@ public class ScoreManagement : MonoBehaviour
     IEnumerator UpdateScoreUI()
     {
         animation.Play();
-        yield return new WaitForSeconds(0.3333f);
-        text_goals.text = goals.ToString();
+        yield return new WaitForSeconds(0.66666f);
+        text_score.text = score.ToString();
     }
 
     void Update()
     {
         if (Input.GetKeyDown(KeyCode.W))
         {
-            goals++;
+            score++;
             StartCoroutine("UpdateScoreUI");
         }
     }
