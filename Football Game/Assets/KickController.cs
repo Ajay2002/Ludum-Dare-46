@@ -80,7 +80,7 @@ public class KickController : MonoBehaviour
             }
             else
             {
-                offset = transform.forward * forwardMultip  * 2;
+                offset = transform.forward * forwardMultip;
                 hMult = 0.2f;
             }
          
