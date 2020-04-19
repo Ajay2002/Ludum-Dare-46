@@ -105,7 +105,8 @@ public class KickController : MonoBehaviour
             {
                 if (Vector3.Distance(footTransform.position, ballTransform.position) <= minDribbleDistance && ballRigidbody.velocity.magnitude <= 45)
                 {
-                    dribbleLocked = true;
+                    if (Input.GetKey(KeyCode.LeftShift))
+                        dribbleLocked = true;
                     if (Input.GetAxis("Vertical") > 0 )
                     {
                         
