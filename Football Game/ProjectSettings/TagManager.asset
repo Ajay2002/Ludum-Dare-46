@@ -5,6 +5,9 @@ TagManager:
   serializedVersion: 2
   tags:
   - Ground
+  - Football
+  - GroundTag
+  - MiddleBlocker
   layers:
   - Default
   - TransparentFX
@@ -15,9 +18,9 @@ TagManager:
   - 
   - 
   - Ground
-  - 
-  - 
-  - 
+  - PlayerBlock
+  - Player
+  - Ball
   - 
   - 
   - 

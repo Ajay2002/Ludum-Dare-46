@@ -4,7 +4,10 @@ using UnityEngine;
 
 public class KickController : MonoBehaviour
 {
+    public float subtract = 0f;
     public PlayerMovement controller;
+
+    public LineRenderer line;
 
     public Transform ballTransform;
     public Rigidbody ballRigidbody;
@@ -22,143 +25,109 @@ public class KickController : MonoBehaviour
     Vector3 initPosition;
     public float moveSpeed;
     Vector3 setPosition;
-    bool runAnim;
+    public bool runAnim;
 
     bool dribbleLocked = false;
     bool kicked = false;
 
 
-    public void InitiateKick (float power, bool isJumping, bool superKick, Vector3 relativeForward)
+    public void InitiateKick(float power, bool isJumping, bool superKick, Vector3 relativeForward, bool realKick)
     {
-        if (dribbleLocked && superKick)
-            return;
-
-        if (kicked)
-            return;
-        
-        if ((ballInRange))
+        if (ballInRange)
         {
-            kicked = true;
-            float multip = 1f;
-            float forwardMultip = 1f;
-            float hMult = 1f;
+            Vector3 offset = transform.forward;
+            float hMult = 0f;
+            float fMult = 0f;
+
+            if (!superKick)
+            {
+                
+                //Juggling 
+                hMult = 5f;
+                fMult = 0.5f;
+            }
+
             if (superKick)
             {
-                multip = 5f;
-                forwardMultip = 1f;
-                hMult = 1f;
+                offset = transform.forward;
+                offset.y = (ballTransform.position - transform.position).normalized.y;
+
+                //Debug.DrawRay(ballTransform.position, offset, Color.red, 10);
+
+                hMult = 2f;
+                fMult = power * 15f;
+                Vector3 fce = offset * fMult * forceMultiplier + Vector3.up * hMult * heightMultiplier;
             }
-            else
-            { multip =1f; forwardMultip = 6f; hMult = 0f;}
-            Vector3 offset = Vector3.zero;
-            if (superKick && controller.grounded)
+
+            if (realKick)
             {
-          
-                offset = (transform.forward * forwardMultip).normalized * power * multip;
+                kicked = true;
+                reLoop = 0f;
+                runAnim = true;
+
+                setPosition = transform.position + (ballTransform.position - footTransform.position) * 0.6f;
+                setPosition.y -= 0.5f;
+                initPosition = transform.position;
+                ballRigidbody.velocity = Vector3.zero;
+                ballRigidbody.angularVelocity = Vector3.zero;
+            }
+
+            
+            Vector3 dir = offset * fMult * forceMultiplier + Vector3.up * hMult * heightMultiplier;
+            if (!realKick && superKick)
+            {
+                
+                
+
+
+
+                // print("GUESS: " + (ballRigidbody.velocity + dir));
+                //  print("REAL VELL : " + ballRigidbody.velocity);
+                //  print("ADDED BY : " + dir);
+                //  print(Time.fixedDeltaTime);
+                Vector3 prevPos = ballTransform.position + (Vector3.zero + dir) * Time.fixedDeltaTime;
+                Vector3 prevVelocity = (Vector3.zero + dir);
+
+                List<Vector3> poss = new List<Vector3>();
+                //poss.Add(prevPos);
+
+                for (int c = 2; c < 200; c++)
+                {
+                    float i = Time.fixedDeltaTime * c;
+
+                    Vector3 accel = Vector3.zero;
+                    accel.y += ((-30 * (i * i)) / 2);
+
+                    prevVelocity.y += (-30 + subtract) * i;
+
+                    Vector3 curPos = prevPos + (prevVelocity) * i;
+
+                    poss.Add(curPos);
+
+                    prevPos = curPos;
+                }
+
+                line.positionCount = (poss.Count);
+                line.SetPositions(poss.ToArray());
 
             }
-            else if (superKick && !controller.grounded)
+
+            if (realKick)
             {
-                offset = transform.forward * 6 * power;
-                hMult = 1.1f;
+                StartCoroutine(kickForce(waitTime, offset * fMult * forceMultiplier + Vector3.up * hMult * heightMultiplier));
+
+                //ballRigidbody.AddForce(dir, ForceMode.Impulse);
+                //kicked = false;
             }
-            else if (dribbleLocked && !superKick)
-            {
-               
-                offset = transform.forward * forwardMultip * 6;
-                hMult = 0.9f;
-            }
-            else if (!controller.grounded && !superKick && Input.GetKey(KeyCode.LeftShift))
-            {
-                offset = transform.forward * forwardMultip * 10;
-                hMult = 0.5f;
-            }
-            else if (controller.grounded && !superKick && Input.GetKey(KeyCode.LeftShift))
-            {
-                offset = transform.forward * forwardMultip * 5;
-                hMult = 0.3f;
-            }
-            else if (!controller.grounded && !superKick)
-            {
-                offset = transform.forward * forwardMultip * 3;
-                hMult = 0.4f;
-            }
-            else
-            {
-                offset = transform.forward * forwardMultip;
-                hMult = 0.2f;
-            }
-         
-            reLoop = 0f;
-            runAnim = true;
-            ballRigidbody.velocity = Vector3.zero;
-            ballRigidbody.angularVelocity = Vector3.zero;
-            setPosition = transform.position + (ballTransform.position - footTransform.position) * 0.7f;
-            setPosition.y -= 0.5f;
-            initPosition = transform.position;
-           
-            StartCoroutine(kick(waitTime, offset, power,hMult));
             
         }
     }
 
-    public void Dribble (Vector3 direction)
+    public void Dribble(Vector3 direction)
     {
-        /*
-        if (!kicked)
-        {
-            if (ballInRange)
-            {
-                if (Vector3.Distance(footTransform.position, ballTransform.position) <= minDribbleDistance && ballRigidbody.velocity.magnitude <= 45)
-                {
-                    if (Input.GetKey(KeyCode.LeftShift))
-                        dribbleLocked = true;
-                    if (Input.GetAxis("Vertical") > 0 )
-                    {
-                        
-                        ballRigidbody.AddForce(transform.forward * dribblePower, ForceMode.Impulse);
-                        ballRigidbody.velocity = Vector3.ClampMagnitude(ballRigidbody.velocity, 40);
-                    }
 
-                }
-                else
-                {
-
-                    if (Input.GetAxis("Vertical") > 0 && controller.grounded && Vector3.Distance(footTransform.position, ballTransform.position) <= minDribbleDistance*2)
-                    {
-                        if (Input.GetKey(KeyCode.LeftShift))
-                        {
-                            reLoop = 0f;
-                            runAnim = true;
-                            setPosition = transform.position + (ballTransform.position - footTransform.position) * 0.3f;
-                            setPosition.y = transform.position.y;
-                            initPosition = transform.position;
-                            dribbleLocked = true;
-                        }
-                    }
-                    else if (controller.rBody.isKinematic)
-                    {
-                        dribbleLocked = false; 
-                        controller.rBody.isKinematic = false;
-                    }
-                    else
-                    {
-                        dribbleLocked = false;
-                    }
-                }
-            }
-            else
-            {
-                dribbleLocked = false;
-            }
-        }
-        else
-        {
-            dribbleLocked = false;
-        }*/
     }
 
-    //Running Anim.
     float reLoop = 0f;
     private void Update()
     {
@@ -169,6 +138,15 @@ public class KickController : MonoBehaviour
                 controller.rBody.isKinematic = true;
                 transform.position = (Vector3.Lerp(initPosition, setPosition, reLoop));
                 reLoop += moveSpeed * Time.deltaTime;
+
+                Vector3 pos = ballTransform.position;
+                pos.y = transform.position.y;
+
+                var targetRotation = Quaternion.LookRotation(pos - transform.position);
+
+                // Smoothly rotate towards the target point.
+
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, 15 * Time.deltaTime);
             }
             else
             {
@@ -178,31 +156,31 @@ public class KickController : MonoBehaviour
         }
     }
 
-    IEnumerator addForceAfterTime (float waitTime)
-    {
-        yield return new WaitForSeconds(waitTime);
-        
-
-    }
-
+  
     IEnumerator kick(float waitTime, Vector3 offset, float power, float heightHeightMultiplier)
     {
         //yield return new WaitForSeconds(waitTime);
 
         while (runAnim == true) yield return null;
 
-        ballRigidbody.AddForce(offset * forceMultiplier + Vector3.up * heightMultiplier*power*heightHeightMultiplier, ForceMode.Impulse);
+        
+        ballRigidbody.AddForce(offset * forceMultiplier + Vector3.up * heightMultiplier * power * heightHeightMultiplier, ForceMode.Impulse);
 
         yield return new WaitForSeconds(waitTime);
         kicked = false;
     }
 
-    IEnumerator forceAfterDelay (float waitTime, Vector3 force)
+    IEnumerator kickForce (float waitTime, Vector3 dir)
     {
+        
+        while (runAnim == true) yield return null;
+        ballRigidbody.AddForce(dir, ForceMode.Impulse);
+
         yield return new WaitForSeconds(waitTime);
-        ballRigidbody.AddForce(force, ForceMode.Impulse);
+        kicked = false;
     }
 
+  
     private void OnTriggerEnter(Collider other)
     {
         if (other.transform.tag == "Football")

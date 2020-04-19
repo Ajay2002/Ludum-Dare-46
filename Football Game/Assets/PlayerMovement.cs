@@ -5,12 +5,18 @@ using UnityEngine.UI;
 public class PlayerMovement : MonoBehaviour
 {
 
+
     [Header("References")]
     public Rigidbody rBody;
     public Animator anim;
     public Image powerIndicator;
     public Image powerIndicato;
     public KickController kickController;
+    public Camera cam;
+
+    [Header("-")]
+    public float initialFOV;
+    public float zoomedOutFOV;
 
     [Header("Physics")]
     public float gravity;
@@ -44,6 +50,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void Awake()
     {
+        kickController.line.enabled = false;
         init = moveSpeed;
     }
 
@@ -72,17 +79,51 @@ public class PlayerMovement : MonoBehaviour
             anim.SetFloat("kickPower", 0);
         }
 
+        if (cam.fieldOfView != initialFOV && !Input.GetKey(KeyCode.LeftShift))
+        {
+            cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, initialFOV, 5 * Time.deltaTime);
+        }
+        else if (cam.fieldOfView != zoomedOutFOV && Input.GetKey(KeyCode.LeftShift))
+        {
+            cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, zoomedOutFOV, 5 * Time.deltaTime);
+        }
+
         v = Input.GetAxis("Vertical") * holdMultiplier;
         h = Input.GetAxis("Horizontal") * holdMultiplier;
         
         if (Input.GetMouseButton(1) )
         {
+            if (kickController.ballInRange)
+            {
+                Time.fixedDeltaTime = 0.001f;
+                Time.timeScale = 0.1f;
+
+                kickController.line.enabled = true;
+                kickController.InitiateKick(Mathf.Clamp((powerUp / maxHoldPowerup) * powerupMultiplier, 0, Mathf.Infinity), jump, true, transform.forward, false);
+
+
+            }
+            else
+            {
+                kickController.line.enabled = false;
+                Time.fixedDeltaTime = 0.01f;
+                Time.timeScale = 1f;
+            }
+
             powerIndicator.color = Color.Lerp(powerIndicator.color, Color.yellow, (powerUp / maxHoldPowerup));
             powerIndicato.color = Color.Lerp(powerIndicator.color, Color.yellow, (powerUp / maxHoldPowerup));
             powerUp = Mathf.Clamp(powerUp+Time.deltaTime,0,maxHoldPowerup);
             anim.SetFloat("kickPower", Mathf.Clamp((powerUp / maxHoldPowerup) * powerupMultiplier, 1, Mathf.Infinity));
             v = 0;
             h = 0;
+
+            
+        }
+        else
+        {
+
+            Time.fixedDeltaTime = 0.01f;
+            Time.timeScale = 1f;
         }
 
         if (Input.GetMouseButtonDown(0) || Input.GetMouseButton(0) || Input.GetMouseButtonUp(0))
@@ -93,18 +134,22 @@ public class PlayerMovement : MonoBehaviour
 
         if (Input.GetMouseButtonUp(1))
         {
-
+            kickController.line.enabled = false;
+            
             if (!grounded && jumpKicks < 1 || grounded)
             {
-                kickController.InitiateKick(Mathf.Clamp((powerUp / maxHoldPowerup) * powerupMultiplier, 1, Mathf.Infinity), jump, true, transform.forward);
+                //kickController.InitiateKick(Mathf.Clamp((powerUp / maxHoldPowerup) * powerupMultiplier, 0, Mathf.Infinity), jump, true, transform.forward, false);
 
+                //Trace(Color.red);
+                kickController.InitiateKick(Mathf.Clamp((powerUp / maxHoldPowerup) * powerupMultiplier, 0, Mathf.Infinity), jump, true, transform.forward,true);
+                //Trace(Color.red);
                 anim.SetBool("superKick", true);
                 v = 0;
                 h = 0;
                 powerUp = 0;
                 if (!grounded)
                 jumpKicks += 1;
-                StartCoroutine(holdCoroutine(0.4f));
+                //StartCoroutine(holdCoroutine(0.001f));
             }
         }
         
@@ -137,12 +182,12 @@ public class PlayerMovement : MonoBehaviour
         {
             if (!grounded && jumpKicks < 1 || grounded)
             {
-                powerIndicator.color = Color.green;
-                powerIndicato.color = Color.green;
+                //powerIndicator.color = Color.green;
+                //powerIndicato.color = Color.green;
                 anim.SetBool("kick", true);
                 v = 0;
                 h = 0;
-                kickController.InitiateKick(1, jump, false, transform.forward);
+                kickController.InitiateKick(1, jump, false, transform.forward,true);
                 if (!grounded)
                     jumpKicks += 1;
 
@@ -155,6 +200,50 @@ public class PlayerMovement : MonoBehaviour
 
     }
 
+    void Trace(Color cc)
+    {
+        float hMult = 0f;
+        float fMult = 0f;
+        Vector3 offset = Vector3.zero;
+
+        offset = transform.forward;
+        offset.y = (kickController.ballTransform.position - transform.position).normalized.y;
+
+        //Debug.DrawRay(ballTransform.position, offset, Color.red, 10);
+
+        float power = Mathf.Clamp((powerUp / maxHoldPowerup) * powerupMultiplier, 1, Mathf.Infinity);
+
+        hMult = 2f;
+        fMult = power * 15f;
+        Vector3 fce = offset * fMult * kickController.forceMultiplier + Vector3.up * hMult * kickController.heightMultiplier;
+
+        // print("ADDED FAKE : " + fce);
+
+        //FCE
+        Vector3 prevPos = kickController.ballTransform.position + (kickController.ballRigidbody.velocity + fce) * Time.fixedDeltaTime;
+        Vector3 prevVelocity = (kickController.ballRigidbody.velocity + fce);
+        prevVelocity.y -= 30f;
+
+        //print("FAKE PREV POS : " + prevPos + " /  FAKE PREV VELOCITY : " + prevVelocity);
+        //  print("FAKE VELLL: " + kickController.ballRigidbody.velocity);
+
+        for (int c = 2; c < 500; c++)
+        {
+            float i = Time.fixedDeltaTime * c;
+
+            Vector3 accel = Vector3.zero;
+            accel.y += ((-30 * (i * i)) / 2);
+
+            prevVelocity.y += (-30 + 1.5f) * i;
+
+            Vector3 curPos = prevPos + (prevVelocity) * i;
+
+            Debug.DrawLine(prevPos, curPos, cc, 10);
+
+            prevPos = curPos;
+        }
+    }
+
     IEnumerator enableRBODY (float seconds)
     {
         yield return new WaitForSeconds(seconds);
@@ -164,16 +253,18 @@ public class PlayerMovement : MonoBehaviour
     Vector3 point;
     private void MouseLook ()
     {
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-        RaycastHit hit;
-
-        if (Physics.Raycast(ray, out hit, Mathf.Infinity, groundMask))
+        if (!kickController.runAnim)
         {
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hit;
 
-            point = hit.point;
-            transform.LookAt(new Vector3(point.x, transform.position.y, point.z), Vector3.up);
+            if (Physics.Raycast(ray, out hit, Mathf.Infinity, groundMask))
+            {
+
+                point = hit.point;
+                transform.LookAt(new Vector3(point.x, transform.position.y, point.z), Vector3.up);
+            }
         }
-
     }
 
 
