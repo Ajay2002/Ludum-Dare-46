@@ -73,6 +73,11 @@ public class KickController : MonoBehaviour
                 offset = transform.forward * forwardMultip * 10;
                 hMult = 0.5f;
             }
+            else if (controller.grounded && !superKick && Input.GetKey(KeyCode.LeftShift))
+            {
+                offset = transform.forward * forwardMultip * 5;
+                hMult = 0.3f;
+            }
             else if (!controller.grounded && !superKick)
             {
                 offset = transform.forward * forwardMultip * 3;
@@ -99,6 +104,7 @@ public class KickController : MonoBehaviour
 
     public void Dribble (Vector3 direction)
     {
+        /*
         if (!kicked)
         {
             if (ballInRange)
@@ -149,7 +155,7 @@ public class KickController : MonoBehaviour
         else
         {
             dribbleLocked = false;
-        }
+        }*/
     }
 
     //Running Anim.
